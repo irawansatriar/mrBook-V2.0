@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-900 text-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-400">Management Dashboard</h1>
+            <a href="/" target="_blank" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm">Back to Booking Page</a>
+			<button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm font-bold transition-colors">
+            Logout
+        </button>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-gray-700 mb-6">
+            <button onclick="showTab('bookings-tab')" id="btn-bookings" 
+                class="px-6 py-3 font-bold border-b-2 border-blue-500 text-blue-500 transition-all">
+                Booking List
+            </button>
+            <button onclick="showTab('rooms-tab')" id="btn-rooms" 
+                class="px-6 py-3 font-bold border-b-2 border-transparent text-gray-400 hover:text-white transition-all">
+                Room List
+            </button>
+        </div>
+
+        <!-- Bookings Tab Content -->
+        <div id="bookings-tab" class="tab-content">
+            <div class="bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-700 text-blue-300">
+                        <tr>
+                            <th class="p-4">Room</th>
+                            <th class="p-4">User</th>
+                            <th class="p-4">Start Time</th>
+                            <th class="p-4">End Time</th>
+                            <th class="p-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Rooms Tab Content -->
+        <div id="rooms-tab" class="tab-content hidden">
+            <div class="bg-gray-800 p-6 rounded-lg mb-6 border border-gray-700">
+                <h3 class="text-lg font-bold mb-4 text-green-400">Add / Edit Room</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="hidden" id="editRoomId">
+                    <input type="text" id="roomName" placeholder="Room Name" class="bg-gray-700 p-2 rounded text-white border border-gray-600 focus:border-green-500 outline-none">
+                    <input type="text" id="roomCapacity" placeholder="Capacity (e.g. 10 Pax)" class="bg-gray-700 p-2 rounded text-white border border-gray-600 focus:border-green-500 outline-none">
+                    <button onclick="saveRoom()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-bold transition-colors">Save Room</button>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-700 text-green-300">
+                        <tr>
+                            <th class="p-4">Room Name</th>
+                            <th class="p-4">Capacity</th>
+                            <th class="p-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rooms-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+    // 1. Authentication Check
+    window.onload = function() {
+        if (!localStorage.getItem('admin_token')) {
+            window.location.href = '/login.html';
+        }
+    };
+
+    function logout() {
+        localStorage.removeItem('admin_token');
+		alert("You have been logged out.");
+        window.location.href = '/login.html';
+    }
+
+    // 2. Tab Switching Logic
+    function showTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+        document.getElementById(tabId).classList.remove('hidden');
+
+        const isBooking = tabId === 'bookings-tab';
+        document.getElementById('btn-bookings').className = isBooking 
+            ? "px-6 py-3 font-bold border-b-2 border-blue-500 text-blue-500" 
+            : "px-6 py-3 font-bold border-b-2 border-transparent text-gray-400 hover:text-white";
+        
+        document.getElementById('btn-rooms').className = !isBooking 
+            ? "px-6 py-3 font-bold border-b-2 border-green-500 text-green-500" 
+            : "px-6 py-3 font-bold border-b-2 border-transparent text-gray-400 hover:text-white";
+    }
+
+    // 3. BOOKING MANAGEMENT (Unified Version)
+    async function loadBookings() {
+        const token = localStorage.getItem('admin_token');
+        try {
+            const res = await fetch('/api/admin/bookings', {
+                headers: { 'Authorization': token }
+            });
+
+            if (!res.ok) {
+                if(res.status === 401) window.location.href = '/login.html';
+                throw new Error("Failed to fetch");
+            }
+
+            const bookings = await res.json();
+            const tbody = document.getElementById('admin-table-body');
+            
+            if (bookings.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No bookings found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = bookings.map(b => `
+                <tr class="border-b border-gray-700 hover:bg-gray-800 transition-colors">
+                    <td class="p-4 font-bold text-blue-300">${b.room_name || 'Deleted Room'}</td>
+                    <td class="p-4">${b.user_name}</td>
+                    <td class="p-4 text-sm text-gray-400">${b.start_time.replace('T', ' ')}</td>
+                    <td class="p-4 text-sm text-gray-400">${b.end_time.replace('T', ' ')}</td>
+                    <td class="p-4">
+                        <button onclick="deleteBooking(${b.id})" class="bg-red-600/20 text-red-400 border border-red-600/50 hover:bg-red-600 hover:text-white px-3 py-1 rounded text-xs transition-all">Cancel</button>
+                    </td>
+                </tr>`).join('');
+        } catch (err) {
+            console.error("Booking Load Error:", err);
+        }
+    }
+
+    async function deleteBooking(id) {
+        if(!confirm("Permanently cancel this reservation?")) return;
+        const token = localStorage.getItem('admin_token');
+        const res = await fetch(`/api/admin/bookings/${id}`, { 
+            method: 'DELETE',
+            headers: { 'Authorization': token }
+        });
+        if(res.ok) loadBookings();
+    }
+
+    // 4. ROOM MANAGEMENT
+    async function loadRooms() {
+        const res = await fetch('/api/rooms');
+        const rooms = await res.json();
+        const tbody = document.getElementById('rooms-table-body');
+        tbody.innerHTML = rooms.map(r => `
+            <tr class="border-b border-gray-700">
+                <td class="p-4 font-bold text-gray-100">${r.name}</td>
+                <td class="p-4 text-gray-400">${r.capacity}</td>
+                <td class="p-4 space-x-4">
+                    <button onclick="editRoom(${r.id}, '${r.name}', '${r.capacity}')" class="text-blue-400 hover:text-blue-300 font-medium">Edit</button>
+                    <button onclick="removeRoom(${r.id})" class="text-red-400 hover:text-red-300 font-medium">Delete</button>
+                </td>
+            </tr>`).join('');
+    }
+
+    async function saveRoom() {
+        const id = document.getElementById('editRoomId').value;
+        const token = localStorage.getItem('admin_token');
+        const data = {
+            name: document.getElementById('roomName').value,
+            capacity: document.getElementById('roomCapacity').value
+        };
+
+        const url = id ? `/api/admin/rooms/${id}` : '/api/admin/rooms';
+        const method = id ? 'PUT' : 'POST';
+
+        await fetch(url, {
+            method: method,
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': token
+            },
+            body: JSON.stringify(data)
+        });
+
+        document.getElementById('editRoomId').value = '';
+        document.getElementById('roomName').value = '';
+        document.getElementById('roomCapacity').value = '';
+        loadRooms();
+    }
+
+    function editRoom(id, name, cap) {
+        document.getElementById('editRoomId').value = id;
+        document.getElementById('roomName').value = name;
+        document.getElementById('roomCapacity').value = cap;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function removeRoom(id) {
+        if(!confirm("Delete this room?")) return;
+        const token = localStorage.getItem('admin_token');
+        await fetch(`/api/admin/rooms/${id}`, { 
+            method: 'DELETE',
+            headers: { 'Authorization': token }
+        });
+        loadRooms();
+    }
+
+    // Initialize
+    loadBookings();
+    loadRooms();
+</script>
+
+
+
+</body>
+
+
+
+</html>

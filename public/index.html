@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Booking V2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .calendar-box { min-height: 100px; transition: all 0.2s; }
+        .room-path:hover { fill: #dbeafe; stroke: #2563eb; cursor: pointer; }
+        .room-text { pointer-events: none; font-weight: 800; fill: #1e293b; }
+    </style>
+</head>
+<body class="bg-slate-100 p-4 md:p-8">
+
+<div class="max-w-md mx-auto"> <!-- Constrained width for mobile focus -->
+    <header class="mb-4 text-center">
+        <h1 class="text-2xl font-black text-slate-800">Room Booking <span class="text-blue-600 text-sm">V2.0</span></h1>
+    </header>
+
+    <!-- Floor Plan Container -->
+    <div class="bg-white p-2 rounded-xl shadow-lg border-2 border-slate-800">
+        <svg viewBox="0 0 400 400" class="w-full h-auto">
+            <style>
+                .room-box { fill: white; stroke: black; stroke-width: 2; cursor: pointer; transition: 0.2s; }
+                .room-box:hover { fill: #eff6ff; }
+                .label { font-size: 14px; font-weight: 800; pointer-events: none; text-anchor: middle; }
+            </style>
+
+            <!-- Foyer Wall (Left) -->
+            <rect x="10" y="10" width="60" height="380" fill="#f8fafc" stroke="black" stroke-width="2" />
+            <text x="40" y="200" transform="rotate(-90 40,200)" class="label opacity-20 text-xl">FOYER</text>
+
+            <!-- War Room 1 (Top - Stacked) -->
+            <g onclick="openCalendar(4, 'War Room 1')">
+                <rect x="70" y="10" width="320" height="100" class="room-box" />
+                <text x="230" y="65" class="label">WAR ROOM 1</text>
+            </g>
+
+            <!-- MR 2 (Middle Left - Stacked) -->
+            <g onclick="openCalendar(2, 'MR 2')">
+                <rect x="70" y="110" width="160" height="130" class="room-box" />
+                <text x="150" y="180" class="label">MR 2</text>
+            </g>
+
+            <!-- MR 3 (Middle Right - Stacked) -->
+            <g onclick="openCalendar(3, 'MR 3')">
+                <rect x="230" y="110" width="160" height="130" class="room-box" />
+                <text x="310" y="180" class="label">MR 3</text>
+            </g>
+
+            <!-- Hallway/Space (Stacked) -->
+            <rect x="70" y="240" width="320" height="40" fill="#f1f5f9" stroke="black" stroke-width="2" />
+
+            <!-- MR 1 (Bottom Left - Stacked) -->
+            <g onclick="openCalendar(1, 'MR 1')">
+                <rect x="70" y="280" width="160" height="110" class="room-box" />
+                <text x="150" y="340" class="label">MR 1</text>
+            </g>
+
+            <!-- Empty Space (Bottom Right - Stacked) -->
+            <rect x="230" y="280" width="160" height="110" fill="white" stroke="black" stroke-width="2" />
+            <line x1="230" y1="280" x2="390" y2="390" stroke="black" stroke-width="1" />
+            <line x1="390" y1="280" x2="230" y2="390" stroke="black" stroke-width="1" />
+        </svg>
+    </div>
+</div>
+
+<!-- Modal with explicit Close Button -->
+<div id="calendarModal" class="fixed inset-0 bg-slate-900/90 hidden z-50 p-2 flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden relative">
+        
+        <!-- Header with Close Button -->
+        <div class="flex justify-between items-center p-4 border-b bg-slate-50">
+            <div>
+                <h2 id="calendarTitle" class="font-black text-blue-600"></h2>
+                <div id="monthDisplay" class="text-xs font-bold text-slate-400 uppercase"></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="changeMonth(-1)" class="p-2 bg-white border rounded shadow-sm">←</button>
+                <button onclick="changeMonth(1)" class="p-2 bg-white border rounded shadow-sm">→</button>
+                <!-- PRIMARY CLOSE BUTTON -->
+                <button onclick="closeCalendar()" class="ml-4 p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+
+			<!-- Left: Calendar View -->
+			<div class="flex-1 flex flex-col overflow-hidden">
+				
+				<!-- 1. FIXED HEADER: This stays outside the scrollable area -->
+				<div class="grid grid-cols-7 gap-px text-center bg-slate-100 border-b border-slate-200">
+					<div class="py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">MON</div>
+					<div class="py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">TUE</div>
+					<div class="py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">WED</div>
+					<div class="py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">THU</div>
+					<div class="py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">FRI</div>
+					<div class="py-3 text-[10px] font-black text-blue-600 uppercase tracking-widest">SAT</div>
+					<div class="py-3 text-[10px] font-black text-red-600 uppercase tracking-widest">SUN</div>
+				</div>
+
+				<!-- 2. SCROLLABLE GRID: Only the dates should be here -->
+				<div id="calendarGrid" class="flex-1 grid grid-cols-7 gap-px bg-slate-200 overflow-y-auto">
+					<!-- JS will inject ONLY 42 calendar boxes here -->
+				</div>
+			</div>
+          
+            <!-- Side Panel (Booking Form) -->
+            <div id="bookingSidePanel" class="w-full md:w-72 bg-slate-50 p-4 border-t md:border-t-0 md:border-l hidden">
+                <h3 class="font-bold mb-4">Book Slot</h3>
+                <div class="space-y-3">
+                    <input type="hidden" id="v2_room_id">
+                    <input type="text" id="v2_user" placeholder="Your Name" class="w-full p-2 border rounded">
+                    <input type="datetime-local" id="v2_start" class="w-full p-2 border rounded text-xs">
+                    <input type="datetime-local" id="v2_end" class="w-full p-2 border rounded text-xs">
+                    <button onclick="submitV2()" class="w-full bg-blue-600 text-white font-bold py-3 rounded">BOOK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script>
+        let currentViewDate = new Date();
+        let activeRoomId = null;
+
+        function changeMonth(offset) {
+            currentViewDate.setMonth(currentViewDate.getMonth() + offset);
+            openCalendar(activeRoomId, document.getElementById('calendarTitle').innerText);
+        }
+		
+		function closeCalendar() {
+		document.getElementById('calendarModal').classList.add('hidden');
+		document.getElementById('bookingSidePanel').classList.add('hidden'); // Ensure panel closes too
+		document.getElementById('v2_user').value = ''; 
+}
+
+        async function openCalendar(roomId, roomName) {
+            activeRoomId = roomId;
+            const modal = document.getElementById('calendarModal');
+            const grid = document.getElementById('calendarGrid');
+            const monthDisplay = document.getElementById('monthDisplay');
+            
+            document.getElementById('calendarTitle').innerText = roomName;
+            grid.innerHTML = ''; 
+            modal.classList.remove('hidden');
+
+            const year = currentViewDate.getFullYear();
+            const month = currentViewDate.getMonth();
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            monthDisplay.innerText = `${monthNames[month]} ${year}`;
+
+            try {
+                const response = await fetch(`/api/bookings?roomId=${roomId}`);
+                const bookings = await response.json();
+
+                const firstDay = new Date(year, month, 1);
+                let offset = firstDay.getDay() - 1; if (offset === -1) offset = 6;
+                const totalDays = new Date(year, month + 1, 0).getDate();
+
+                for (let i = 0; i < 42; i++) {
+                    const dayNum = i - offset + 1;
+                    const box = document.createElement('div');
+                    box.className = "calendar-box bg-white p-2 border border-slate-50 flex flex-col";
+
+                    if (dayNum > 0 && dayNum <= totalDays) {
+                        box.innerHTML = `<span class="text-slate-300 font-black text-xs">${dayNum}</span>`;
+                        box.classList.add('cursor-pointer', 'hover:bg-blue-50/50');
+                        
+                        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+                        box.onclick = () => showBookingPanel(roomId, dateStr);
+
+                        // Filter using start_time from database
+                        const daily = bookings.filter(b => b.start_time.startsWith(dateStr));
+                        daily.forEach(b => {
+                            const time = b.start_time.split('T')[1].substring(0,5);
+                            box.innerHTML += `<div class="bg-blue-500 text-white text-[8px] px-1 py-0.5 rounded-md mt-1 truncate shadow-sm font-bold">${time} ${b.user_name}</div>`;
+                        });
+                    } else {
+                        box.classList.add('bg-slate-50', 'opacity-30');
+                    }
+                    grid.appendChild(box);
+                }
+            } catch (e) { console.error("Error loading calendar:", e); }
+        }
+
+        function showBookingPanel(id, dateStr) {
+            const panel = document.getElementById('bookingSidePanel');
+            panel.classList.remove('hidden');
+            document.getElementById('v2_room_id').value = id;
+            document.getElementById('v2_start').value = `${dateStr}T09:00`;
+            document.getElementById('v2_end').value = `${dateStr}T10:00`;
+        }
+
+        function resetForm() {
+            document.getElementById('v2_user').value = '';
+            document.getElementById('bookingSidePanel').classList.add('hidden');
+        }
+
+        function closeCalendar() {
+            document.getElementById('calendarModal').classList.add('hidden');
+            resetForm();
+        }
+
+        async function submitV2() {
+            const data = {
+                roomId: parseInt(document.getElementById('v2_room_id').value),
+                user: document.getElementById('v2_user').value,
+                start: document.getElementById('v2_start').value,
+                end: document.getElementById('v2_end').value
+            };
+
+            const res = await fetch('/api/reserve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                alert("Reservation Successful!");
+                resetForm();
+                openCalendar(activeRoomId, document.getElementById('calendarTitle').innerText);
+            } else {
+                alert("Error: " + result.message);
+            }
+        }
+    </script>
+</body>
+</html>
